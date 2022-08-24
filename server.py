@@ -123,16 +123,16 @@ class HttpServer:
         connection.send(res)
 
     def handle_connection(self, connection):
-        while True:
-            # Receiving data from client socket
-            data = connection.recv(1024).decode()
-            if not data:  # If data is empty, terminate connection
-                break
-            # Processing the HTTP request
-            request = HttpRequest(data)
-            # Calling the right method handler
-            if request.method in self.methods:
-                self.methods[request.method](connection, request)
+        # Receiving data from client socket
+        data = connection.recv(1024).decode()
+        if not data:  # If data is empty, terminate connection
+            return
+        # Processing the HTTP request
+        request = HttpRequest(data)
+        # Calling the right method handler
+        if request.method in self.methods:
+            self.log(request.method, request.path, request.protocol)
+            self.methods[request.method](connection, request)
 
     def start(self):
         self.socket.bind((self.host, self.port))

@@ -14,6 +14,7 @@ def main():
     # Values = relative / absolute file paths
     routes = {
         '/': '/index.html',
+        '/favicon.ico': 'imgs/favicon.ico',
     }
     server = HttpServer(HOST, PORT, root, routes)
     server.start()
