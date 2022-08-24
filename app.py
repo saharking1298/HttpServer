@@ -16,21 +16,39 @@ class App:
         routes = {
             '/': '/index.html',
             '/favicon.ico': 'imgs/favicon.ico',
-            '/calculate-next': self.calculate_next
+            '/calculate-next': self.calculate_next,
+            '/calculate-area': self.calculate_area,
         }
         self.server = HttpServer(HOST, PORT, root, routes)
+
+    def calculate_area(self, request):
+        # Takes 2 URL parameters: height, width
+        # Returns square area (height * width)
+        status = 200
+        try:
+            height = int(request.params["height"])
+            width = int(request.params["width"])
+            response = str(float(height * width) / 2)
+        except ValueError:
+            response = "NaN"
+        except IndexError:
+            status = 400
+            response = "Missing one or more required parameters: 'height', 'width'"
+        return status, "text", response
 
     def calculate_next(self, request):
         # Takes 1 URL parameter: num
         # Returns num + 1
-        response = "Parameter 'num' doesn't exist"
-        print(request.params)
+        response = "Missing one or more required parameters: 'num'"
+        status = 400
         if "num" in request.params:
             try:
                 response = str(int(request.params["num"]) + 1)
-            except TypeError:
-                response = "Invalid number"
-        return 200, "text", response
+                status = 200
+            except ValueError:
+                status = 200
+                response = "NaN"
+        return status, "text", response
 
     def start(self):
         self.server.start()

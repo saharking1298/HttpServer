@@ -13,6 +13,7 @@ CONTENT_TYPES = {
 }
 STATUS_CODES = {
     '200': 'OK',
+    '400': 'BAD_REQUEST',
     '404': 'NOT_FOUND',
     '403': 'FORBIDDEN',
     '500': 'INTERNAL_SERVER_ERROR'
