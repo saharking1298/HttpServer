@@ -18,10 +18,12 @@ STATUS_CODES = {
     '403': 'FORBIDDEN',
     '500': 'INTERNAL_SERVER_ERROR'
 }
+BUFFER_SIZE = 1024
 
 
 class HttpRequest:
     def __init__(self, request):
+        self.raw = request
         self.method = ""
         self.path = ""
         self.protocol = ""
@@ -59,9 +61,7 @@ class HttpRequest:
 
 class HttpServer:
     def __init__(self, host, port, root, routes, debug=True):
-        self.methods = {
-            "GET": self.method_get,
-        }
+        self.methods = ("GET", "POST")
         self.root = root.replace("/", os.path.sep)
         self.routes = routes
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -87,30 +87,31 @@ class HttpServer:
     def fix_routes(self):
         # Making partial route paths full and absolute
         abs_path_pattern = re.compile("^[A-Z]:/.+$")  # Absolute path Regex template
-        for key, value in self.routes.items():
-            if type(value) != str:
-                continue
-            # Checking of value is already an absolute path
-            if abs_path_pattern.fullmatch(value) and os.path.isfile(value):
-                full_path = value.replace("/", os.path.sep)
-            else:
-                full_path = self.get_absolute_path(value)
-            self.routes[key] = full_path
-        # Debugging routes and their serving path
-        self.log(self.routes)
+        for top_key in self.routes:
+            for key, value in self.routes[top_key].items():
+                if type(value) != str:
+                    continue
+                # Checking of value is already an absolute path
+                if abs_path_pattern.fullmatch(value) and os.path.isfile(value):
+                    full_path = value.replace("/", os.path.sep)
+                else:
+                    full_path = self.get_absolute_path(value)
+                self.routes[top_key][key] = full_path
+            # Debugging routes and their serving path
+            self.log(self.routes[top_key])
 
-    def build_response(self, res_code, content_type, res_body):
-        if type(res_body) == str:
-            res_body = res_body.encode()
-        if type(res_code) != str:
-            res_code = str(res_code)
-        res = f"HTTP/1.1 {res_code} {STATUS_CODES[res_code]}\r\n"
+    def build_response(self, status_code, content_type, content):
+        if type(content) == str:
+            content = content.encode()
+        if type(status_code) != str:
+            status_code = str(status_code)
+        res = f"HTTP/1.1 {status_code} {STATUS_CODES[status_code]}\r\n"
         res += f"Content-Type: {CONTENT_TYPES[content_type]}\r\n"
-        res += f"Content-Length: {len(res_body)}\r\n\r\n"
-        res = res.encode() + res_body
+        res += f"Content-Length: {len(content)}\r\n\r\n"
+        res = res.encode() + content
         return res
 
-    def method_get(self, request):
+    def http_method(self, request):
         # Priorities:
         # 1. Pre-defined route --> 500 if fails
         # 2. File requests --> 404 if fails
@@ -118,8 +119,8 @@ class HttpServer:
         content_type = "file"
         status_code = 200
         content = ""
-        if request.path in self.routes:
-            entry = self.routes[request.path]
+        if request.path in self.routes[request.method]:
+            entry = self.routes[request.method][request.path]
             if type(entry) == str:
                 content = entry
             elif callable(entry):
@@ -150,7 +151,7 @@ class HttpServer:
 
     def handle_connection(self, connection):
         # Receiving data from client socket
-        data = connection.recv(1024).decode()
+        data = connection.recv(BUFFER_SIZE).decode()
         if not data:  # If data is empty, terminate connection
             return
         # Processing the HTTP request
@@ -158,7 +159,7 @@ class HttpServer:
         # Calling the right method handler
         if request.method in self.methods:
             self.log(request.method, request.path, request.protocol)
-            response = self.methods[request.method](request)
+            response = self.http_method(request)
             connection.send(response)
         connection.close()
 
